@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="gl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buscador Xurídico</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Caslon+Display&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Libre+Franklin:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Idea: unha gaceta oficial. Cabeceira de boletín con data e número, o § como único xesto grande; resultados sobrios como fichas de arquivo. */
+  --paper: #f1f2ef;
+  --sheet: #fbfbf9;
+  --ink: #16191c;
+  --muted: #5d6267;
+  --rule: #d3d5d0;
+  --accent: #7a1f2b;
+  --accent-soft: #f1e3e4;
+  --gold: #a6843a;
+  --font-display: "Libre Caslon Display", "Libre Caslon Text", Georgia, serif;
+  --font-serif: "Libre Caslon Text", Georgia, "Times New Roman", serif;
+  --font-ui: "Libre Franklin", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #111315; --sheet: #181b1e; --ink: #e9e7e2; --muted: #9a9fa4; --rule: #2d3135;
+    --accent: #e3929b; --accent-soft: #2c1d20; --gold: #cdb06a; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #111315; --sheet: #181b1e; --ink: #e9e7e2; --muted: #9a9fa4; --rule: #2d3135;
+  --accent: #e3929b; --accent-soft: #2c1d20; --gold: #cdb06a; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--font-ui); font-size: 16px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+a { color: var(--accent); text-underline-offset: 3px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+button { font-family: inherit; }
+.sr { position: absolute; left: -9999px; }
+.wrap { max-width: 920px; margin: 0 auto; padding: 0 20px; }
+
+/* ---------- Cabeceira de gaceta ---------- */
+.gazette { background: var(--sheet); border-bottom: 1px solid var(--rule); position: relative; overflow: hidden; }
+.gazette::after { /* o § grande */
+  content: "§"; position: absolute; right: -0.06em; top: -0.22em;
+  font-family: var(--font-display); font-size: clamp(260px, 38vw, 440px); line-height: 1;
+  color: var(--accent); opacity: .07; pointer-events: none;
+}
+.strip { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 14px 0 10px; border-bottom: 1px solid var(--ink); font-variant-numeric: tabular-nums; }
+.strip b { color: var(--accent); font-weight: 600; }
+.masthead { text-align: left; padding: 26px 0 8px; }
+.masthead h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(46px, 8.5vw, 92px); line-height: .95; letter-spacing: -0.015em; margin: 0; }
+.masthead h1 em { font-style: normal; color: var(--accent); }
+.rules { height: 7px; border-top: 3px solid var(--ink); border-bottom: 1px solid var(--ink); margin: 18px 0 0; transform-origin: left; animation: draw .9s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.thesis { font-family: var(--font-serif); font-style: italic; font-size: clamp(18px, 2.4vw, 22px); color: var(--muted); margin: 14px 0 0; max-width: 40ch; }
+
+/* ---------- Buscador ---------- */
+.search { padding: 26px 0 30px; display: grid; gap: 14px; position: relative; z-index: 1; }
+.search form { display: flex; align-items: stretch; background: var(--sheet); border: 1.5px solid var(--ink); box-shadow: 5px 5px 0 var(--accent); transition: box-shadow .2s, transform .2s; }
+.search form:focus-within { box-shadow: 7px 7px 0 var(--accent); transform: translate(-2px, -2px); }
+.search .sym { font-family: var(--font-display); font-size: 30px; color: var(--accent); padding: 0 6px 0 16px; display: flex; align-items: center; }
+.search input { flex: 1; min-width: 0; font-family: var(--font-serif); font-size: 20px; padding: 16px 10px; border: 0; background: transparent; color: var(--ink); outline: none; }
+.search input::placeholder { color: var(--muted); font-style: italic; }
+.btn { font-weight: 600; font-size: 14px; letter-spacing: .1em; text-transform: uppercase; padding: 0 26px; border: 0; border-left: 1.5px solid var(--ink); background: var(--ink); color: var(--sheet); cursor: pointer; }
+.btn:hover { background: var(--accent); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.row .lbl { letter-spacing: .1em; text-transform: uppercase; font-size: 11px; font-weight: 600; margin-right: 2px; }
+.chip { font-size: 14px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); padding: 4px 12px; border-radius: 2px; cursor: pointer; transition: border-color .15s, color .15s; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.recent::before { content: "↺ "; color: var(--muted); }
+.notice { font-size: 13px; color: var(--accent); background: var(--accent-soft); padding: 9px 12px; }
+
+/* ---------- Portada: índice ---------- */
+.index { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); margin: 6px 0 56px; }
+.index div { padding: 20px 20px 4px 0; }
+.index div + div { border-left: 1px solid var(--rule); padding-left: 20px; }
+.index .num { font-family: var(--font-display); font-size: 40px; color: var(--accent); line-height: 1; }
+.index h2 { font-family: var(--font-serif); font-size: 20px; font-weight: 700; margin: 8px 0 6px; }
+.index p { margin: 0; font-size: 14px; color: var(--muted); }
+
+/* ---------- Resultados ---------- */
+.results { padding: 0 0 70px; }
+.head { display: flex; justify-content: space-between; align-items: end; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--ink); padding-bottom: 10px; }
+.kicker { font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+.concept-title { font-family: var(--font-display); font-weight: 400; font-size: clamp(36px, 6vw, 56px); line-height: 1; margin: 6px 0 0; text-wrap: balance; }
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); overflow-x: auto; margin-top: 4px; }
+.tab { font-weight: 500; font-size: 15px; background: none; border: 0; border-bottom: 3px solid transparent; padding: 14px 18px 11px; color: var(--muted); cursor: pointer; white-space: nowrap; display: flex; gap: 8px; align-items: baseline; }
+.tab .n { font-family: var(--font-display); font-size: 18px; color: var(--gold); }
+.tab:hover { color: var(--ink); }
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.count { font-family: var(--font-mono); font-size: 12px; color: var(--accent); background: var(--accent-soft); padding: 0 7px; font-variant-numeric: tabular-nums; }
+.panel { padding-top: 22px; }
+.panel[hidden] { display: none; }
+
+.list { display: grid; gap: 14px; }
+.item { background: var(--sheet); border: 1px solid var(--rule); padding: 18px 20px; display: grid; grid-template-columns: auto 1fr; gap: 4px 18px; animation: rise .45s cubic-bezier(.2,.7,.2,1) both; }
+.item:nth-child(2) { animation-delay: .05s; } .item:nth-child(3) { animation-delay: .1s; } .item:nth-child(4) { animation-delay: .15s; }
+.item:nth-child(5) { animation-delay: .2s; } .item:nth-child(n+6) { animation-delay: .25s; }
+@keyframes rise { from { opacity: .001; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.item:hover { border-color: var(--muted); }
+.body { display: grid; gap: 6px; min-width: 0; }
+
+/* Selo do tribunal */
+.seal { width: 54px; height: 54px; border-radius: 50%; border: 1.5px solid var(--accent); display: grid; place-items: center; color: var(--accent); font-family: var(--font-serif); font-weight: 700; font-size: 14px; letter-spacing: .02em; position: relative; grid-row: span 4; }
+.seal::before { content: ""; position: absolute; inset: 3px; border-radius: 50%; border: 1px dashed var(--accent); opacity: .45; }
+.seal.tc { background: var(--accent); color: var(--sheet); }
+.seal.tc::before { border-color: var(--sheet); }
+
+.meta { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta .tipo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); }
+.item h3 { font-family: var(--font-serif); font-size: 19px; font-weight: 700; margin: 0; line-height: 1.3; text-wrap: balance; }
+.item h3 a { color: var(--ink); text-decoration: none; background-image: linear-gradient(var(--accent), var(--accent)); background-size: 0 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size .25s; }
+.item h3 a:hover { background-size: 100% 1px; }
+.summary { margin: 2px 0 0; max-width: 68ch; font-family: var(--font-serif); font-size: 16px; }
+.summary .lab { font-family: var(--font-ui); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 14px; font-weight: 600; margin-top: 4px; }
+.mono { font-family: var(--font-mono); font-size: 12.5px; font-weight: 400; color: var(--muted); }
+.copy { font-size: 13px; font-weight: 600; background: none; border: 1px solid var(--rule); color: var(--ink); padding: 3px 10px; cursor: pointer; }
+.copy:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Lexislación: a cor da franxa indica o rango */
+.law { grid-template-columns: 1fr; border-left: 5px solid var(--rank, var(--rule)); }
+.law[data-rank="1"] { --rank: var(--accent); }
+.law[data-rank="2"] { --rank: color-mix(in srgb, var(--accent) 70%, var(--sheet)); }
+.law[data-rank="3"] { --rank: color-mix(in srgb, var(--accent) 45%, var(--sheet)); }
+.law[data-rank="4"] { --rank: color-mix(in srgb, var(--accent) 22%, var(--sheet)); }
+.law[data-rank="ue"] { --rank: var(--gold); }
+.arts { font-size: 14px; color: var(--muted); }
+.arts b { color: var(--ink); font-weight: 600; }
+.ccaa { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; border: 1px solid var(--ink); background: var(--sheet); padding: 12px 16px; margin-bottom: 22px; }
+.ccaa label { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.ccaa select { font: inherit; font-size: 15px; padding: 7px 10px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); min-width: 230px; }
+.ccaa small { color: var(--muted); font-size: 13px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: -8px 0 14px; }
+.legend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+.sec-h { font-family: var(--font-serif); font-size: 22px; font-weight: 700; margin: 30px 0 6px; display: flex; align-items: baseline; gap: 10px; }
+.sec-h::after { content: ""; flex: 1; border-bottom: 1px solid var(--rule); }
+.sec-h:first-child { margin-top: 0; }
+.competence { margin: 0 0 14px; max-width: 68ch; color: var(--muted); font-family: var(--font-serif); font-style: italic; }
+
+/* Definición: entrada de dicionario */
+.entry { background: var(--sheet); border: 1px solid var(--rule); padding: 30px 32px; position: relative; animation: rise .45s cubic-bezier(.2,.7,.2,1) both; }
+.entry .hw { font-family: var(--font-display); font-size: clamp(30px, 5vw, 42px); line-height: 1.05; margin: 0; }
+.entry .gram { font-family: var(--font-serif); font-style: italic; color: var(--accent); margin: 6px 0 16px; }
+.entry .text { font-family: var(--font-serif); font-size: 21px; line-height: 1.5; margin: 0 0 18px; max-width: 60ch; }
+.entry .text::first-letter { font-family: var(--font-display); font-size: 3.1em; float: left; line-height: .85; padding: 4px 8px 0 0; color: var(--accent); }
+.entry .src { font-size: 14px; color: var(--muted); margin: 0 0 18px; padding-top: 14px; border-top: 1px solid var(--rule); clear: both; }
+.entry .src b { color: var(--ink); }
+
+/* Carga: esqueletos */
+.sk { display: grid; gap: 14px; }
+.sk div { height: 118px; background: var(--sheet); border: 1px solid var(--rule); position: relative; overflow: hidden; }
+.sk div::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--rule) 55%, transparent), transparent); animation: sheen 1.3s infinite; }
+@keyframes sheen { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.sk-label { font-family: var(--font-serif); font-style: italic; color: var(--muted); margin: 0 0 12px; }
+.error { color: var(--accent); padding: 12px 0; }
+.empty { color: var(--muted); padding: 12px 0; font-family: var(--font-serif); font-style: italic; }
+
+/* ---------- Ferramentas ---------- */
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.tool { font-size: 13px; font-weight: 600; background: var(--sheet); border: 1px solid var(--ink); color: var(--ink); padding: 7px 12px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; }
+.tool:hover { background: var(--ink); color: var(--sheet); }
+.tool .count { margin-left: 2px; }
+.star { background: none; border: 0; cursor: pointer; font-size: 22px; line-height: 1; color: var(--rule); padding: 2px 4px; justify-self: end; }
+.star:hover { color: var(--gold); }
+.star[aria-pressed="true"] { color: var(--gold); }
+.item { position: relative; }
+.item > .star { position: absolute; top: 10px; right: 10px; }
+.item .body { padding-right: 28px; }
+
+.favs { background: var(--sheet); border: 1px solid var(--ink); padding: 20px 22px; margin: 0 0 28px; }
+.favs h2 { font-family: var(--font-serif); font-size: 22px; margin: 0 0 4px; }
+.favs .hint { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+.fav-row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 14px; align-items: baseline; padding: 10px 0; border-top: 1px solid var(--rule); }
+.fav-row .k { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+.fav-row a { font-family: var(--font-serif); font-weight: 700; color: var(--ink); text-decoration: none; }
+.fav-row a:hover { color: var(--accent); }
+.fav-row .from { grid-column: 2; font-size: 13px; color: var(--muted); }
+.fav-row button { grid-row: span 2; }
+
+.boxes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 14px; }
+.box { background: var(--sheet); border: 1px solid var(--rule); padding: 18px 20px; }
+.box h4 { margin: 0 0 8px; font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+.box p { margin: 0; font-family: var(--font-serif); }
+.diff { display: grid; gap: 10px; }
+.diff div { font-family: var(--font-serif); }
+.diff b { font-family: var(--font-ui); font-size: 14px; display: block; }
+
+.quiz-intro { background: var(--sheet); border: 1px solid var(--rule); padding: 22px 24px; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.quiz-intro p { margin: 0; font-family: var(--font-serif); max-width: 52ch; }
+.btn-alt { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 11px 18px; border: 0; background: var(--ink); color: var(--sheet); cursor: pointer; }
+.btn-alt:hover { background: var(--accent); }
+.q { background: var(--sheet); border: 1px solid var(--rule); padding: 18px 20px; display: grid; gap: 10px; }
+.q h3 { margin: 0; font-family: var(--font-serif); font-size: 18px; line-height: 1.35; }
+.q h3 span { color: var(--accent); margin-right: 6px; }
+.opts { display: grid; gap: 6px; }
+.opt { text-align: left; font: inherit; font-size: 15px; background: var(--paper); border: 1px solid var(--rule); color: var(--ink); padding: 10px 12px; cursor: pointer; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt:disabled { cursor: default; }
+.opt.ok { border-color: #2f6b4f; background: color-mix(in srgb, #2f6b4f 14%, var(--sheet)); }
+.opt.ko { border-color: var(--accent); background: var(--accent-soft); }
+.opt.ok::after { content: "  ✓ correcta"; font-weight: 600; color: #2f6b4f; }
+.opt.ko::after { content: "  ✗"; font-weight: 600; color: var(--accent); }
+.why { font-family: var(--font-serif); font-size: 15px; color: var(--muted); margin: 0; }
+.score { font-family: var(--font-display); font-size: 30px; margin: 18px 0 8px; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: var(--sheet); padding: 10px 16px; font-size: 14px; font-weight: 600; z-index: 10; }
+@media (max-width: 680px) { .boxes { grid-template-columns: 1fr; } }
+
+/* ---------- Navegación entre seccións ---------- */
+.nav { display: flex; gap: 0; overflow-x: auto; margin-top: 2px; scrollbar-width: none; }
+.nav a { text-decoration: none; color: var(--muted); font-size: 12px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; padding: 13px 14px 10px; border-bottom: 3px solid transparent; white-space: nowrap; }
+.nav a:first-child { padding-left: 0; }
+.nav a:hover { color: var(--ink); }
+.nav a[aria-current="page"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ---------- Seccións de ferramentas ---------- */
+.view { padding: 30px 0 70px; }
+.vh { display: grid; gap: 6px; margin-bottom: 22px; }
+.vh h2 { font-family: var(--font-display); font-weight: 400; font-size: clamp(34px, 5.5vw, 50px); line-height: 1; margin: 0; }
+.vh p { margin: 0; font-family: var(--font-serif); font-style: italic; color: var(--muted); max-width: 60ch; font-size: 18px; }
+.card { background: var(--sheet); border: 1.5px solid var(--ink); box-shadow: 5px 5px 0 var(--accent); padding: 20px 22px; display: grid; gap: 14px; margin-bottom: 26px; }
+.field { display: grid; gap: 6px; }
+.field label, .flabel { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.field input, .field select, .field textarea { font: inherit; font-size: 16px; padding: 10px 12px; border: 1px solid var(--rule); background: var(--paper); color: var(--ink); width: 100%; }
+.field textarea { font-family: var(--font-serif); min-height: 170px; resize: vertical; line-height: 1.5; }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--ink); }
+.field small { color: var(--muted); font-size: 13px; }
+.cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.vs { font-family: var(--font-display); font-size: 26px; color: var(--accent); align-self: end; padding-bottom: 6px; text-align: center; }
+.cmp-in { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; }
+.formrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.ex { font-size: 13px; color: var(--muted); }
+.ex button { font-size: 13px; background: none; border: 0; border-bottom: 1px dotted var(--muted); color: var(--ink); cursor: pointer; padding: 0; margin: 0 4px; }
+
+.issue { background: var(--sheet); border: 1px solid var(--rule); padding: 18px 20px; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; }
+.issue .no { font-family: var(--font-display); font-size: 34px; color: var(--accent); line-height: 1; grid-row: span 5; }
+.issue h3 { margin: 0; font-family: var(--font-serif); font-size: 19px; line-height: 1.3; }
+.issue .norms { display: flex; flex-wrap: wrap; gap: 6px; }
+.issue .norms span { font-family: var(--font-mono); font-size: 12.5px; background: var(--accent-soft); color: var(--accent); padding: 1px 8px; }
+.issue p { margin: 0; font-family: var(--font-serif); }
+.issue .concl { border-left: 3px solid var(--ink); padding-left: 10px; }
+.issue .concl b { font-family: var(--font-ui); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
+.summary-box { background: var(--ink); color: var(--sheet); padding: 18px 22px; font-family: var(--font-serif); font-size: 17px; }
+.summary-box b { font-family: var(--font-ui); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; display: block; margin-bottom: 4px; color: var(--gold); }
+
+.cmp { width: 100%; border-collapse: collapse; background: var(--sheet); border: 1px solid var(--rule); font-size: 15px; }
+.cmp th, .cmp td { text-align: left; vertical-align: top; padding: 12px 14px; border-top: 1px solid var(--rule); }
+.cmp thead th { font-family: var(--font-serif); font-size: 18px; border-top: 0; border-bottom: 2px solid var(--ink); }
+.cmp tbody th { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); width: 22%; }
+.cmp td { font-family: var(--font-serif); }
+.scroll { overflow-x: auto; }
+
+.result-big { background: var(--sheet); border: 1px solid var(--ink); padding: 22px 24px; display: grid; gap: 8px; }
+.result-big .lbl2 { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.result-big .date { font-family: var(--font-display); font-size: clamp(30px, 5vw, 44px); line-height: 1.05; color: var(--accent); }
+.result-big p { margin: 0; }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; font-variant-numeric: tabular-nums; font-size: 13px; }
+.cal .h { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 4px 0; }
+.cal .d { text-align: center; padding: 7px 0; background: var(--paper); border: 1px solid transparent; }
+.cal .d.off { color: var(--muted); text-decoration: line-through; opacity: .65; }
+.cal .d.count { background: var(--accent-soft); }
+.cal .d.start { border-color: var(--ink); }
+.cal .d.end { background: var(--accent); color: var(--sheet); font-weight: 700; }
+.cal .d.empty { background: transparent; }
+.months { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 18px; }
+.month h4 { margin: 0 0 6px; font-family: var(--font-serif); font-size: 16px; text-transform: capitalize; }
+.legend2 { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.legend2 i { display: inline-block; width: 12px; height: 12px; vertical-align: -2px; margin-right: 5px; border: 1px solid var(--rule); }
+
+.lat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.lat { background: var(--sheet); border: 1px solid var(--rule); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.lat .la { font-family: var(--font-serif); font-style: italic; font-size: 18px; font-weight: 700; }
+.lat .gl { font-family: var(--font-serif); }
+.lat .use { font-size: 13px; color: var(--muted); }
+.lat .area { font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+@media (max-width: 680px) { .cols, .cols3 { grid-template-columns: 1fr; } .cmp-in { grid-template-columns: 1fr; } .vs { padding: 0; } }
+
+footer { border-top: 3px double var(--rule); color: var(--muted); font-size: 13px; padding: 18px 0 34px; }
+footer .wrap { display: flex; gap: 14px; align-items: start; }
+footer .s { font-family: var(--font-display); font-size: 28px; color: var(--accent); line-height: 1; }
+
+@media (max-width: 680px) {
+  .index { grid-template-columns: 1fr; }
+  .index div + div { border-left: 0; border-top: 1px solid var(--rule); padding-left: 0; }
+  .search form { flex-wrap: wrap; }
+  .search input { font-size: 18px; }
+  .btn { width: 100%; border-left: 0; border-top: 1.5px solid var(--ink); padding: 13px; }
+  .item { grid-template-columns: 1fr; }
+  .seal { grid-row: auto; width: 44px; height: 44px; font-size: 12px; }
+  .entry { padding: 22px 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<header class="gazette">
+  <div class="wrap">
+    <div class="strip"><span id="today">Edición dixital</span><span><b>Xurisprudencia</b> · Lexislación · Definicións</span></div>
+    <div class="masthead">
+      <h1>Buscador <em>Xurídico</em></h1>
+      <div class="rules"></div>
+      <nav class="nav" aria-label="Seccións">
+        <a href="#buscador" data-v="buscador">Buscador</a>
+        <a href="#casos" data-v="casos">Casos prácticos</a>
+        <a href="#artigos" data-v="artigos">Explicar artigo</a>
+        <a href="#comparar" data-v="comparar">Comparador</a>
+        <a href="#prazos" data-v="prazos">Prazos</a>
+        <a href="#latinismos" data-v="latinismos">Latinismos</a>
+      </nav>
+      <p class="thesis" id="thesis">Escribe un concepto e atoparás a doutrina dos tribunais, a norma vixente e a súa definición.</p>
+    </div>
+    <section class="search" id="search-sec">
+      <form id="f" role="search">
+        <span class="sym" aria-hidden="true">§</span>
+        <label for="q" class="sr">Concepto xurídico</label>
+        <input id="q" type="search" placeholder="alevosía, usucapión, despedimento improcedente…" autocomplete="off">
+        <button class="btn" id="go" type="submit">Buscar</button>
+      </form>
+      <div class="row" id="sugg"><span class="lbl">Probar con</span>
+        <button class="chip" type="button">Alevosía</button>
+        <button class="chip" type="button">Usucapión</button>
+        <button class="chip" type="button">Objeción de conciencia</button>
+        <button class="chip" type="button">Responsabilidade patrimonial</button>
+        <button class="chip" type="button">Despedimento improcedente</button>
+      </div>
+      <div class="row" id="recent" hidden></div>
+      <div class="tools"><button class="tool" type="button" id="favs-btn" aria-expanded="false">★ Gardados <span class="count" id="favs-n">0</span></button></div>
+    </section>
+  </div>
+</header>
+
+<main class="wrap">
+<div id="v-buscador" class="vwrap">
+  <section id="favs" class="favs" hidden aria-label="Gardados"></section>
+  <section id="intro" class="index" aria-label="Que atoparás">
+    <div><div class="num">I</div><h2>Xurisprudencia</h2><p>As resolucións do TS, o TC e outros tribunais que tratan o concepto, cun resumo do que decidiu o tribunal e a cita lista para copiar.</p></div>
+    <div><div class="num">II</div><h2>Lexislación vixente</h2><p>As normas estatais ordenadas por rango, cos artigos clave e a ligazón ao BOE. Escolle unha comunidade autónoma para ver a súa normativa propia.</p></div>
+    <div><div class="num">III</div><h2>Definición</h2><p>Unha entrada breve como a dun dicionario xurídico, coa norma de referencia e conceptos relacionados.</p></div>
+  </section>
+
+  <section id="results" class="results" hidden>
+    <div class="head">
+      <div><div class="kicker" id="rama">Concepto</div><h2 class="concept-title" id="ct"></h2></div>
+      <div class="tools"><button class="tool" type="button" id="notes-btn">Copiar apuntes</button></div>
+    </div>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="t-jur" aria-controls="p-jur" aria-selected="true"><span class="n">I</span>Xurisprudencia <span class="count" id="c-jur" hidden></span></button>
+      <button class="tab" role="tab" id="t-lex" aria-controls="p-lex" aria-selected="false"><span class="n">II</span>Lexislación vixente <span class="count" id="c-lex" hidden></span></button>
+      <button class="tab" role="tab" id="t-def" aria-controls="p-def" aria-selected="false"><span class="n">III</span>Definición</button>
+      <button class="tab" role="tab" id="t-quiz" aria-controls="p-quiz" aria-selected="false"><span class="n">✎</span>Ponte a proba</button>
+    </div>
+    <div class="panel" id="p-jur" role="tabpanel" aria-labelledby="t-jur"></div>
+    <div class="panel" id="p-lex" role="tabpanel" aria-labelledby="t-lex" hidden>
+      <div class="ccaa">
+        <label for="ca">Comunidade autónoma</label>
+        <select id="ca">
+          <option value="">Só lexislación estatal</option>
+          <option>Andalucía</option><option>Aragón</option><option>Principado de Asturias</option>
+          <option>Illes Balears</option><option>Canarias</option><option>Cantabria</option>
+          <option>Castilla-La Mancha</option><option>Castilla y León</option><option>Cataluña</option>
+          <option>Comunitat Valenciana</option><option>Extremadura</option><option>Galicia</option>
+          <option>Comunidad de Madrid</option><option>Región de Murcia</option><option>Comunidad Foral de Navarra</option>
+          <option>País Vasco</option><option>La Rioja</option><option>Ceuta</option><option>Melilla</option>
+        </select>
+        <small>Amosa tamén a normativa propia da comunidade, se a ten.</small>
+      </div>
+      <div id="lex-state"></div>
+      <div id="lex-ccaa"></div>
+    </div>
+    <div class="panel" id="p-def" role="tabpanel" aria-labelledby="t-def" hidden></div>
+    <div class="panel" id="p-quiz" role="tabpanel" aria-labelledby="t-quiz" hidden></div>
+  </section>
+</div>
+
+<!-- ===== Casos prácticos ===== -->
+<section id="v-casos" class="view vwrap" hidden>
+  <div class="vh"><h2>Casos prácticos</h2><p>Pega o enunciado dun suposto e recibirás un esquema de resolución: cuestións xurídicas, normas aplicables, análise e conclusión.</p></div>
+  <form class="card" id="casos-f">
+    <div class="field"><label for="casos-t">Enunciado do suposto</label>
+      <textarea id="casos-t" maxlength="6000" placeholder="Pega aquí o enunciado completo do caso práctico…"></textarea>
+      <small id="casos-n">0 / 6000 caracteres</small></div>
+    <div class="formrow">
+      <div class="field" style="min-width:240px"><label for="casos-r">Rama do Dereito</label>
+        <select id="casos-r"><option value="">Detectala automaticamente</option><option>Dereito Penal</option><option>Dereito Civil</option><option>Dereito Administrativo</option><option>Dereito Constitucional</option><option>Dereito do Traballo</option><option>Dereito Mercantil</option><option>Dereito Procesual</option><option>Dereito Internacional</option><option>Dereito Eclesiástico</option><option>Dereito Financeiro e Tributario</option></select></div>
+      <button class="btn-alt" type="submit" style="align-self:end">Analizar o caso</button>
+    </div>
+  </form>
+  <div id="casos-out"></div>
+</section>
+
+<!-- ===== Explicar artigo ===== -->
+<section id="v-artigos" class="view vwrap" hidden>
+  <div class="vh"><h2>Explicar un artigo</h2><p>Escribe o artigo e a norma e verás que di en palabras sinxelas, que requisitos contén e un exemplo.</p></div>
+  <form class="card" id="art-f">
+    <div class="formrow">
+      <div class="field" style="flex:1;min-width:240px"><label for="art-q">Artigo e norma</label><input id="art-q" placeholder="p. ex. art. 1902 CC, art. 24 CE, art. 139 CP" autocomplete="off"></div>
+      <button class="btn-alt" type="submit" style="align-self:end">Explicar</button>
+    </div>
+    <div class="ex">Exemplos: <button type="button">art. 24 CE</button><button type="button">art. 1902 CC</button><button type="button">art. 20 CP</button><button type="button">art. 47 Lei 39/2015</button></div>
+  </form>
+  <div id="art-out"></div>
+</section>
+
+<!-- ===== Comparador ===== -->
+<section id="v-comparar" class="view vwrap" hidden>
+  <div class="vh"><h2>Comparador de conceptos</h2><p>Dous conceptos que adoitan confundirse, comparados criterio por criterio nunha táboa.</p></div>
+  <form class="card" id="cmp-f">
+    <div class="cmp-in">
+      <div class="field"><label for="cmp-a">Concepto A</label><input id="cmp-a" placeholder="p. ex. dolo eventual" autocomplete="off"></div>
+      <div class="vs" aria-hidden="true">vs</div>
+      <div class="field"><label for="cmp-b">Concepto B</label><input id="cmp-b" placeholder="p. ex. imprudencia consciente" autocomplete="off"></div>
+    </div>
+    <div class="formrow" style="justify-content:space-between">
+      <div class="ex">Probar: <button type="button" data-a="Nulidade" data-b="Anulabilidade">nulidade / anulabilidade</button><button type="button" data-a="Dolo eventual" data-b="Imprudencia consciente">dolo eventual / imprudencia consciente</button><button type="button" data-a="Usufruto" data-b="Arrendamento">usufruto / arrendamento</button></div>
+      <button class="btn-alt" type="submit">Comparar</button>
+    </div>
+  </form>
+  <div id="cmp-out"></div>
+</section>
+
+<!-- ===== Prazos ===== -->
+<section id="v-prazos" class="view vwrap" hidden>
+  <div class="vh"><h2>Calculadora de prazos</h2><p>Calcula o último día dun prazo xudicial ou administrativo, descontando os días inhábiles.</p></div>
+  <form class="card" id="pz-f">
+    <div class="cols3">
+      <div class="field"><label for="pz-d">Notificación (día inicial)</label><input id="pz-d" type="date" required></div>
+      <div class="field"><label for="pz-n">Duración</label>
+        <div class="formrow" style="flex-wrap:nowrap"><input id="pz-n" type="number" min="1" max="999" value="20" required style="width:90px"><select id="pz-u" aria-label="Unidade"><option value="d">días</option><option value="m">meses</option></select></div></div>
+      <div class="field"><label for="pz-t">Tipo de prazo</label>
+        <select id="pz-t">
+          <option value="xud">Xudicial (civil, contencioso, social)</option>
+          <option value="adm">Administrativo (Lei 39/2015)</option>
+          <option value="nat">Días naturais</option>
+        </select></div>
+    </div>
+    <div class="field"><label for="pz-f2">Festivos autonómicos e locais (opcional)</label>
+      <input id="pz-f2" placeholder="Un ou varios, separados por comas: 17/05/2027, 25/07/2027" autocomplete="off">
+      <small>Os festivos nacionais e o Venres Santo xa se contan. Engade os da túa comunidade e localidade, que cambian cada ano.</small></div>
+    <div class="formrow" style="justify-content:flex-end"><button class="btn-alt" type="submit">Calcular</button></div>
+  </form>
+  <div id="pz-out"></div>
+</section>
+
+<!-- ===== Latinismos ===== -->
+<section id="v-latinismos" class="view vwrap" hidden>
+  <div class="vh"><h2>Latinismos e aforismos</h2><p>As expresións latinas máis usadas no Dereito, co seu significado e cando se empregan.</p></div>
+  <div class="card" style="box-shadow:none">
+    <div class="field"><label for="lat-q">Buscar unha expresión</label><input id="lat-q" placeholder="in dubio pro reo, iura novit curia, rebus sic stantibus…" autocomplete="off"></div>
+  </div>
+  <div id="lat-ask"></div>
+  <div class="lat-grid" id="lat-list"></div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap"><span class="s" aria-hidden="true">§</span><span>Resultados elaborados por intelixencia artificial: poden faltar as resolucións máis recentes e algún dato pode ser inexacto. Comproba sempre na fonte oficial antes de citar.</span></div>
+</footer>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  let current = "", runId = 0;
+  let cur = {}; // resultados do concepto actual, para os apuntes e o test
+
+  // ---------- Gardados ----------
+  const favKey = (f) => f.kind + "|" + f.title;
+  const getFavs = () => store.get("favs") || [];
+  const isFav = (f) => getFavs().some(x => favKey(x) === favKey(f));
+  function toggleFav(f) {
+    let list = getFavs();
+    if (list.some(x => favKey(x) === favKey(f))) list = list.filter(x => favKey(x) !== favKey(f));
+    else list = [{ ...f, at: Date.now() }, ...list].slice(0, 200);
+    store.set("favs", list); renderFavs();
+    return list.some(x => favKey(x) === favKey(f));
+  }
+  const starBtn = (f) => `<button class="star" type="button" aria-pressed="${isFav(f)}" aria-label="Gardar" title="Gardar" data-fav="${esc(JSON.stringify(f))}">★</button>`;
+  function renderFavs() {
+    const list = getFavs();
+    $("favs-n").textContent = list.length;
+    const box = $("favs");
+    box.innerHTML = `<h2>Gardados</h2><p class="hint">Sentenzas e normas que marcaches coa estrela. Gárdanse só neste navegador.</p>` +
+      (list.length ? list.map((f, i) => `<div class="fav-row"><span class="k">${esc(f.kind)}</span><a href="${esc(f.link)}" target="_blank" rel="noopener">${esc(f.title)}</a><button class="copy" type="button" data-unfav="${i}">Quitar</button><span class="from">${esc(f.sub || "")}${f.concept ? " · buscado en «" + esc(f.concept) + "»" : ""}</span></div>`).join("")
+        : `<p class="empty">Aínda non gardaches nada. Preme a estrela ★ dunha sentenza ou dunha norma.</p>`);
+  }
+  function toast(t) {
+    const el = document.createElement("div"); el.className = "toast"; el.textContent = t;
+    document.body.appendChild(el); setTimeout(() => el.remove(), 2200);
+  }
+
+  const MESES = ["xaneiro","febreiro","marzo","abril","maio","xuño","xullo","agosto","setembro","outubro","novembro","decembro"];
+  const DIAS = ["Domingo","Luns","Martes","Mércores","Xoves","Venres","Sábado"];
+  const now = new Date();
+  $("today").textContent = `${DIAS[now.getDay()]}, ${now.getDate()} de ${MESES[now.getMonth()]} de ${now.getFullYear()}`;
+
+  const skeleton = (t, n = 3) => `<p class="sk-label">${esc(t)}</p><div class="sk">${"<div></div>".repeat(n)}</div>`;
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem("bx:" + k)); } catch { return null; } },
+    set(k, v) { try { localStorage.setItem("bx:" + k, JSON.stringify(v)); } catch {} }
+  };
+
+  const g = (q) => "https://www.google.com/search?q=" + encodeURIComponent(q);
+  const safeUrl = (u) => /^https:\/\/[^\s"]+$/.test(u || "") ? u : null;
+  const boeLink = (id, title, url) => /^BOE-A-\d{4}-\d+$/.test(id || "")
+    ? "https://www.boe.es/buscar/act.php?id=" + id
+    : safeUrl(url) || g('site:boe.es "' + title + '"');
+  const caseLink = (c) => safeUrl(c.url) || (c.ecli ? g('"' + c.ecli + '"') : g([c.tribunal, c.numero, c.data].filter(Boolean).join(" ")));
+  const CENDOJ = "https://www.poderjudicial.es/search/indexAN.jsp";
+
+  // Pide un resultado ao servidor (netlify/edge-functions/ask.js), que é quen fala coa IA.
+  async function ask(task, payload) {
+    const r = await fetch("/api/ask", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ task, ...payload })
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) throw { status: r.status, message: d.error };
+    return d;
+  }
+  const errMsg = (e) => e && e.message ? "Non se puido obter o resultado: " + e.message
+    : "Non se puido obter o resultado. Volve probar nun intre.";
+
+  async function cached(key, fn) {
+    let d = store.get(key);
+    if (!d) { d = await fn(); store.set(key, d); }
+    return d;
+  }
+
+  function fmtDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); if (!m) return s;
+    return `${+m[3]} de ${MESES[+m[2]-1]} de ${m[1]}`;
+  }
+  function sealOf(t) {
+    t = (t || "").toLowerCase();
+    if (t.includes("constitucional")) return ["TC", "tc"];
+    if (t.includes("supremo")) return ["TS", ""];
+    if (t.includes("audiencia nacional")) return ["AN", ""];
+    if (t.includes("superior") || t.includes("tsx") || t.includes("tsj")) return ["TSX", ""];
+    if (t.includes("provincial")) return ["AP", ""];
+    if (t.includes("derechos humanos") || t.includes("dereitos humanos") || t.includes("tedh")) return ["TEDH", ""];
+    if (t.includes("unión europea") || t.includes("unión europea") || t.includes("xustiza") || t.includes("tjue") || t.includes("txue")) return ["TXUE", ""];
+    return ["§", ""];
+  }
+  function rankOf(r) {
+    r = (r || "").toLowerCase();
+    if (r.includes("constituci")) return "1";
+    if (r.includes("org")) return "2";
+    if (r.includes("ue") || r.includes("europe") || r.includes("directiva") || r.includes("regulamento ue")) return "ue";
+    if (r.includes("decreto lex") || r.includes("decreto leg") || r.includes("decreto-le") || r.includes("lei") || r.includes("ley") || r.includes("código") || r.includes("compilación")) return "3";
+    return "4";
+  }
+  function citeOf(c) {
+    const parts = [c.numero || [c.tipo, c.tribunal].filter(Boolean).join(" do ")];
+    if (c.data) parts.push("de " + fmtDate(c.data));
+    return parts.join(", ") + (c.ecli ? ` (${c.ecli})` : "");
+  }
+
+  // ---------- Xurisprudencia ----------
+  async function loadJur(concept, id) {
+    const p = $("p-jur"); p.innerHTML = skeleton("Consultando a doutrina dos tribunais…", 4);
+    try {
+      const d = await cached("jur:" + concept.toLowerCase(), () => ask("jur", { concept }));
+      if (id !== runId) return;
+      const cs = (d && d.casos) || [];
+      cur.jur = cs;
+      $("c-jur").textContent = cs.length; $("c-jur").hidden = false;
+      if (!cs.length) { p.innerHTML = `<p class="empty">Non se atoparon resolucións fiables para este concepto.</p>`; return; }
+      p.innerHTML = `<div class="list">${cs.map((c, i) => { const [s, cls] = sealOf(c.tribunal); return `
+        <article class="item">
+          ${starBtn({ kind: c.tipo || "Resolución", title: citeOf(c) + " · " + (c.titulo || ""), link: caseLink(c), sub: c.tribunal, concept })}
+          <div class="seal ${cls}" aria-hidden="true">${esc(s)}</div>
+          <div class="body">
+            <div class="meta"><span class="tipo">${esc(c.tipo || "Resolución")}</span><span>${esc(c.tribunal)}</span>${c.data ? `<span>${esc(fmtDate(c.data))}</span>` : ""}</div>
+            <h3><a href="${esc(caseLink(c))}" target="_blank" rel="noopener">${esc(c.titulo)}</a></h3>
+            <p class="summary"><span class="lab">Resolveu</span>${esc(c.resumo)}</p>
+            <div class="actions">
+              <a href="${esc(caseLink(c))}" target="_blank" rel="noopener">Abrir sentenza →</a>
+              <button class="copy" type="button" data-cite="${esc(citeOf(c))}">Copiar cita</button>
+              ${c.numero || c.ecli ? `<span class="mono">${esc([c.numero, c.ecli].filter(Boolean).join(" · "))}</span>` : ""}
+            </div>
+          </div>
+        </article>`; }).join("")}</div>
+        <p class="arts" style="margin-top:16px">Para resolucións posteriores, busca o concepto no <a href="${CENDOJ}" target="_blank" rel="noopener">buscador do CENDOJ</a>.</p>`;
+    } catch (e) { if (id === runId) p.innerHTML = `<p class="error">${esc(errMsg(e))}</p>`; }
+  }
+
+  // ---------- Lexislación ----------
+  const legend = `<div class="legend"><span><i style="background:var(--accent)"></i>Constitución</span><span><i style="background:color-mix(in srgb,var(--accent) 70%,var(--sheet))"></i>Lei orgánica</span><span><i style="background:color-mix(in srgb,var(--accent) 45%,var(--sheet))"></i>Lei</span><span><i style="background:color-mix(in srgb,var(--accent) 22%,var(--sheet))"></i>Regulamento</span><span><i style="background:var(--gold)"></i>Dereito da UE</span></div>`;
+  const lawList = (ls) => `<div class="list">${ls.map(l => `
+    <article class="item law" data-rank="${rankOf(l.rango)}">
+      ${starBtn({ kind: l.rango || "Norma", title: l.titulo, link: boeLink(l.boe_id, l.titulo, l.url), sub: l.artigos ? "Artigos: " + l.artigos : "", concept: current })}
+      <div class="body">
+        <div class="meta"><span class="tipo">${esc(l.rango || "Norma")}</span>${l.boe_id ? `<span class="mono">${esc(l.boe_id)}</span>` : ""}</div>
+        <h3><a href="${esc(boeLink(l.boe_id, l.titulo, l.url))}" target="_blank" rel="noopener">${esc(l.titulo)}</a></h3>
+        ${l.artigos ? `<div class="arts"><b>Artigos clave:</b> ${esc(l.artigos)}</div>` : ""}
+        <p class="summary">${esc(l.contido)}</p>
+      </div>
+    </article>`).join("")}</div>`;
+
+  async function loadLex(concept, id) {
+    const box = $("lex-state"); box.innerHTML = skeleton("Reunindo a lexislación estatal…", 3);
+    try {
+      const d = await cached("lex:" + concept.toLowerCase(), () => ask("lex", { concept }));
+      if (id !== runId) return;
+      const ls = (d && d.normas) || [];
+      cur.lex = ls;
+      $("c-lex").textContent = ls.length; $("c-lex").hidden = false;
+      box.innerHTML = `<h3 class="sec-h">Lexislación estatal</h3>` +
+        (d.competencia ? `<p class="competence">${esc(d.competencia)}</p>` : "") +
+        (ls.length ? legend + lawList(ls) : `<p class="empty">Non se atopou lexislación estatal específica.</p>`);
+    } catch (e) { if (id === runId) box.innerHTML = `<p class="error">${esc(errMsg(e))}</p>`; }
+  }
+
+  async function loadCCAA(concept, ca, id) {
+    const box = $("lex-ccaa");
+    if (!ca) { box.innerHTML = ""; return; }
+    box.innerHTML = `<h3 class="sec-h">Lexislación de ${esc(ca)}</h3>` + skeleton("Buscando a normativa autonómica…", 2);
+    try {
+      const d = await cached("ca:" + ca + ":" + concept.toLowerCase(), () => ask("ccaa", { concept, ca }));
+      if (id !== runId || $("ca").value !== ca) return;
+      const ls = (d && d.normas) || [];
+      cur.ca = { nome: ca, normas: ls };
+      box.innerHTML = `<h3 class="sec-h">Lexislación de ${esc(ca)}</h3>` +
+        (d.explicacion ? `<p class="competence">${esc(d.explicacion)}</p>` : "") +
+        (ls.length ? lawList(ls) : `<p class="empty">${esc(ca)} non ten lexislación propia específica sobre este concepto; aplícase a estatal.</p>`);
+    } catch (e) { if (id === runId) box.innerHTML = `<p class="error">${esc(errMsg(e))}</p>`; }
+  }
+
+  // ---------- Definición ----------
+  async function loadDef(concept, id) {
+    const p = $("p-def"); p.innerHTML = skeleton("Redactando a definición…", 1);
+    try {
+      const d = await cached("def2:" + concept.toLowerCase(), () => ask("def", { concept }));
+      if (id !== runId) return;
+      cur.def = d;
+      if (d.nome) $("ct").textContent = d.nome;
+      if (d.rama) $("rama").textContent = d.rama;
+      p.innerHTML = `<article class="entry">
+        <h3 class="hw">${esc(d.nome || concept)}</h3>
+        <p class="gram">${esc(d.rama || "Dereito")}</p>
+        <p class="text">${esc(d.definicion)}</p>
+        ${d.fonte ? `<p class="src"><b>Referencia:</b> ${esc(d.fonte)}</p>` : ""}
+        ${(d.relacionados || []).length ? `<div class="row"><span class="lbl">Véxase tamén</span>${d.relacionados.map(r => `<button class="chip rel" type="button">${esc(r)}</button>`).join("")}</div>` : ""}
+      </article>
+      ${d.exemplo || (d.diferenzas || []).length ? `<div class="boxes">
+        ${d.exemplo ? `<div class="box"><h4>Exemplo práctico</h4><p>${esc(d.exemplo)}</p></div>` : ""}
+        ${(d.diferenzas || []).length ? `<div class="box"><h4>Non confundir con</h4><div class="diff">${d.diferenzas.map(x => `<div><b>${esc(x.concepto)}</b>${esc(x.diferenza)}</div>`).join("")}</div></div>` : ""}
+      </div>` : ""}`;
+    } catch (e) { if (id === runId) p.innerHTML = `<p class="error">${esc(errMsg(e))}</p>`; }
+  }
+
+  // ---------- Ponte a proba ----------
+  let quiz = null;
+  function quizIntro() {
+    $("p-quiz").innerHTML = `<div class="quiz-intro"><p>Cinco preguntas tipo test sobre <b>${esc(current)}</b> para comprobar se o tes claro. Cada vez que as pidas saen preguntas novas.</p><button class="btn-alt" type="button" id="quiz-go">Facer o test</button></div>`;
+  }
+  async function loadQuiz() {
+    const concept = current, id = runId;
+    $("p-quiz").innerHTML = skeleton("Preparando as preguntas…", 3);
+    try {
+      const d = await ask("quiz", { concept });
+      if (id !== runId) return;
+      quiz = { qs: (d && d.preguntas) || [], answers: {} };
+      renderQuiz();
+    } catch (e) { if (id === runId) $("p-quiz").innerHTML = `<p class="error">${esc(errMsg(e))}</p>`; }
+  }
+  function renderQuiz() {
+    const done = Object.keys(quiz.answers).length, ok = quiz.qs.filter((q, i) => quiz.answers[i] === q.correcta).length;
+    $("p-quiz").innerHTML = `<div class="list">${quiz.qs.map((q, i) => {
+      const a = quiz.answers[i];
+      return `<div class="q"><h3><span>${i + 1}.</span>${esc(q.enunciado)}</h3><div class="opts">${(q.opcions || []).map((o, j) => {
+        const cls = a === undefined ? "" : j === q.correcta ? "ok" : j === a ? "ko" : "";
+        return `<button class="opt ${cls}" type="button" data-q="${i}" data-o="${j}" ${a !== undefined ? "disabled" : ""}>${esc(o)}</button>`;
+      }).join("")}</div>${a !== undefined ? `<p class="why">${esc(q.explicacion)}</p>` : ""}</div>`;
+    }).join("")}</div>` +
+    (done === quiz.qs.length && done ? `<p class="score">${ok} de ${quiz.qs.length} correctas</p><button class="btn-alt" type="button" id="quiz-go">Outras 5 preguntas</button>` : "");
+  }
+
+  // ---------- Apuntes ----------
+  function buildNotes() {
+    const L = [], d = cur.def || {};
+    L.push((d.nome || current).toUpperCase() + (d.rama ? " (" + d.rama + ")" : ""), "");
+    if (d.definicion) L.push("DEFINICIÓN", d.definicion + (d.fonte ? " [" + d.fonte + "]" : ""), "");
+    if (d.exemplo) L.push("EXEMPLO", d.exemplo, "");
+    if ((d.diferenzas || []).length) { L.push("NON CONFUNDIR CON"); d.diferenzas.forEach(x => L.push("- " + x.concepto + ": " + x.diferenza)); L.push(""); }
+    if ((cur.lex || []).length) { L.push("LEXISLACIÓN ESTATAL"); cur.lex.forEach(l => L.push("- " + l.titulo + (l.artigos ? " (" + l.artigos + ")" : "") + ": " + (l.contido || ""))); L.push(""); }
+    if (cur.ca && cur.ca.normas.length) { L.push("LEXISLACIÓN DE " + cur.ca.nome.toUpperCase()); cur.ca.normas.forEach(l => L.push("- " + l.titulo + (l.artigos ? " (" + l.artigos + ")" : "") + ": " + (l.contido || ""))); L.push(""); }
+    if ((cur.jur || []).length) { L.push("XURISPRUDENCIA"); cur.jur.forEach(c => L.push("- " + citeOf(c) + ". " + (c.titulo || "") + ". " + (c.resumo || ""))); L.push(""); }
+    L.push("(Elaborado co Buscador Xurídico. Comprobar na fonte oficial antes de citar.)");
+    return L.join("\n");
+  }
+
+  // ---------- Buscas recentes ----------
+  function getRecent() { return store.get("recent") || []; }
+  function addRecent(c) {
+    const list = [c, ...getRecent().filter(x => x.toLowerCase() !== c.toLowerCase())].slice(0, 6);
+    store.set("recent", list); renderRecent();
+  }
+  function renderRecent() {
+    const list = getRecent(), box = $("recent");
+    if (!list.length) { box.hidden = true; return; }
+    box.hidden = false;
+    box.innerHTML = `<span class="lbl">Buscas recentes</span>` + list.map(r => `<button class="chip recent" type="button">${esc(r)}</button>`).join("");
+  }
+
+  function search(concept) {
+    concept = concept.trim(); if (!concept) return;
+    current = concept; const id = ++runId;
+    cur = {}; quiz = null; quizIntro();
+    $("favs").hidden = true; $("favs-btn").setAttribute("aria-expanded", "false");
+    $("q").value = concept;
+    addRecent(concept);
+    $("intro").hidden = true; $("results").hidden = false;
+    $("ct").textContent = concept.charAt(0).toUpperCase() + concept.slice(1);
+    $("rama").textContent = "Concepto";
+    $("c-jur").hidden = true; $("c-lex").hidden = true;
+    $("lex-ccaa").innerHTML = "";
+    loadDef(concept, id);
+    loadJur(concept, id);
+    loadLex(concept, id);
+    if ($("ca").value) loadCCAA(concept, $("ca").value, id);
+    $("results").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+  }
+
+  const tabs = ["jur", "lex", "def", "quiz"];
+  tabs.forEach(t => $("t-" + t).addEventListener("click", () => {
+    tabs.forEach(o => { $("t-" + o).setAttribute("aria-selected", o === t); $("p-" + o).hidden = o !== t; });
+  }));
+
+  const chipSearch = e => { if (e.target.classList.contains("chip")) search(e.target.textContent); };
+  $("f").addEventListener("submit", e => { e.preventDefault(); search($("q").value); });
+  $("sugg").addEventListener("click", chipSearch);
+  $("recent").addEventListener("click", chipSearch);
+  $("p-def").addEventListener("click", e => { if (e.target.classList.contains("rel")) search(e.target.textContent); });
+  $("ca").addEventListener("change", () => { if (current) loadCCAA(current, $("ca").value, runId); });
+  $("p-jur").addEventListener("click", async e => {
+    const b = e.target.closest(".copy"); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.cite); b.textContent = "Cita copiada"; }
+    catch { b.textContent = b.dataset.cite; }
+    setTimeout(() => { b.textContent = "Copiar cita"; }, 2200);
+  });
+  // Estrelas (en calquera panel de resultados)
+  $("results").addEventListener("click", e => {
+    const b = e.target.closest(".star"); if (!b) return;
+    const on = toggleFav(JSON.parse(b.dataset.fav));
+    b.setAttribute("aria-pressed", on);
+    toast(on ? "Gardado en ★ Gardados" : "Quitado de Gardados");
+  });
+  $("favs-btn").addEventListener("click", () => {
+    const open = $("favs").hidden;
+    $("favs").hidden = !open; $("favs-btn").setAttribute("aria-expanded", open);
+    if (open) $("favs").scrollIntoView({ block: "nearest" });
+  });
+  $("favs").addEventListener("click", e => {
+    const b = e.target.closest("[data-unfav]"); if (!b) return;
+    const list = getFavs(); list.splice(+b.dataset.unfav, 1); store.set("favs", list); renderFavs();
+    document.querySelectorAll(".star").forEach(s => s.setAttribute("aria-pressed", isFav(JSON.parse(s.dataset.fav))));
+  });
+  // Test
+  $("p-quiz").addEventListener("click", e => {
+    if (e.target.id === "quiz-go") { loadQuiz(); return; }
+    const o = e.target.closest(".opt"); if (!o || !quiz) return;
+    quiz.answers[+o.dataset.q] = +o.dataset.o; renderQuiz();
+  });
+  // Apuntes
+  $("notes-btn").addEventListener("click", async () => {
+    const text = buildNotes();
+    try { await navigator.clipboard.writeText(text); toast("Apuntes copiados: pégaos onde queiras"); }
+    catch { toast("Non se puido copiar. Proba de novo."); }
+  });
+  // =====================================================================
+  //  SECCIÓNS
+  // =====================================================================
+  const VIEWS = ["buscador", "casos", "artigos", "comparar", "prazos", "latinismos"];
+  function route() {
+    const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "buscador";
+    VIEWS.forEach(x => { $("v-" + x).hidden = x !== v; });
+    document.querySelectorAll(".nav a").forEach(a => { if (a.dataset.v === v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+    $("search-sec").hidden = v !== "buscador";
+    $("thesis").hidden = v !== "buscador";
+    if (v === "latinismos") renderLat();
+  }
+  window.addEventListener("hashchange", route);
+  const needClaude = () => true;
+  const goSearch = (c) => { location.hash = "buscador"; setTimeout(() => search(c), 0); };
+
+  // ---------- Casos prácticos ----------
+  $("casos-t").addEventListener("input", () => { $("casos-n").textContent = $("casos-t").value.length + " / 6000 caracteres"; });
+  let casosText = "";
+  $("casos-f").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const box = $("casos-out"), t = $("casos-t").value.trim(), rama = $("casos-r").value;
+    if (t.length < 40) { box.innerHTML = `<p class="error">Pega o enunciado completo do caso (polo menos un par de frases).</p>`; return; }
+    if (!needClaude(box)) return;
+    box.innerHTML = skeleton("Lendo o suposto e preparando o esquema…", 3);
+    try {
+      const d = await ask("casos", { t, rama });
+      const qs = d.cuestions || [];
+      casosText = [`CASO PRÁCTICO${d.rama ? " (" + d.rama + ")" : ""}`, "", ...qs.flatMap((q, i) => [`${i + 1}. ${q.cuestion}`, `Normas: ${(q.normas || []).join("; ")}`, q.analise, `Conclusión: ${q.conclusion}`, ""]), (d.datos_que_faltan || []).length ? "Datos que faltan: " + d.datos_que_faltan.join("; ") : "", "", "Solución: " + (d.resumo || "")].join("\n");
+      box.innerHTML = `<div class="formrow" style="justify-content:space-between;margin-bottom:12px"><div class="kicker">${esc(d.rama || "Esquema de resolución")}</div><button class="tool" type="button" data-copy="casos">Copiar esquema</button></div>
+        <div class="list">${qs.map((q, i) => `<article class="issue">
+          <div class="no">${i + 1}</div>
+          <h3>${esc(q.cuestion)}</h3>
+          <div class="norms">${(q.normas || []).map(n => `<span>${esc(n)}</span>`).join("")}</div>
+          <p>${esc(q.analise)}</p>
+          <p class="concl"><b>Conclusión</b>${esc(q.conclusion)}</p>
+        </article>`).join("")}</div>
+        ${(d.datos_que_faltan || []).length ? `<div class="box" style="margin-top:14px"><h4>Datos que faltan no enunciado</h4><p>${d.datos_que_faltan.map(esc).join(" · ")}</p></div>` : ""}
+        <div class="summary-box" style="margin-top:14px"><b>Solución</b>${esc(d.resumo)}</div>
+        <p class="arts" style="margin-top:12px">É un esquema orientativo para estudar: contrasta as normas citadas co texto oficial.</p>`;
+    } catch (err) { box.innerHTML = `<p class="error">${esc(errMsg(err))}</p>`; }
+  });
+
+  // ---------- Explicar artigo ----------
+  async function explainArticle(q) {
+    const box = $("art-out");
+    q = q.trim(); if (!q) return;
+    if (!needClaude(box)) return;
+    $("art-q").value = q;
+    box.innerHTML = skeleton("Buscando o artigo…", 2);
+    try {
+      const d = await cached("art:" + q.toLowerCase(), () => ask("art", { q }));
+      if (d.erro) { box.innerHTML = `<p class="error">${esc(d.erro)}</p>`; return; }
+      box.innerHTML = `<article class="entry">
+          <div class="kicker">${esc(d.norma || "")}</div>
+          <h3 class="hw" style="margin-top:6px">Artigo ${esc(d.artigo || "")}</h3>
+          ${d.titulo ? `<p class="gram">${esc(d.titulo)}</p>` : `<p class="gram"></p>`}
+          <p class="text">${esc(d.explicacion)}</p>
+          <p class="src"><a href="${esc(boeLink(d.boe_id, d.norma || q))}" target="_blank" rel="noopener">Ler o texto oficial da norma no BOE →</a></p>
+          ${(d.conceptos || []).length ? `<div class="row"><span class="lbl">Buscar no buscador</span>${d.conceptos.map(c => `<button class="chip go-search" type="button">${esc(c)}</button>`).join("")}</div>` : ""}
+        </article>
+        <div class="boxes">
+          ${(d.requisitos || []).length ? `<div class="box"><h4>Requisitos ou elementos</h4><div class="diff">${d.requisitos.map((r, i) => `<div><b>${i + 1}.</b>${esc(r)}</div>`).join("")}</div></div>` : ""}
+          ${d.exemplo ? `<div class="box"><h4>Exemplo práctico</h4><p>${esc(d.exemplo)}</p></div>` : ""}
+        </div>`;
+    } catch (err) { box.innerHTML = `<p class="error">${esc(errMsg(err))}</p>`; }
+  }
+  $("art-f").addEventListener("submit", e => { e.preventDefault(); explainArticle($("art-q").value); });
+  $("art-f").addEventListener("click", e => { if (e.target.matches(".ex button")) explainArticle(e.target.textContent); });
+  $("art-out").addEventListener("click", e => { if (e.target.classList.contains("go-search")) goSearch(e.target.textContent); });
+
+  // ---------- Comparador ----------
+  async function compare(a, b) {
+    const box = $("cmp-out");
+    a = a.trim(); b = b.trim();
+    if (!a || !b) { box.innerHTML = `<p class="error">Escribe os dous conceptos.</p>`; return; }
+    if (!needClaude(box)) return;
+    $("cmp-a").value = a; $("cmp-b").value = b;
+    box.innerHTML = skeleton("Comparando…", 2);
+    try {
+      const d = await cached("cmp:" + a.toLowerCase() + "|" + b.toLowerCase(), () => ask("cmp", { a, b }));
+      box.innerHTML = `<div class="kicker" style="margin-bottom:10px">${esc(d.rama || "")}</div>
+        <div class="scroll"><table class="cmp">
+          <thead><tr><th></th><th>${esc(d.a || a)}</th><th>${esc(d.b || b)}</th></tr></thead>
+          <tbody>${(d.diferenzas || []).map(x => `<tr><th scope="row">${esc(x.criterio)}</th><td>${esc(x.a)}</td><td>${esc(x.b)}</td></tr>`).join("")}</tbody>
+        </table></div>
+        <div class="boxes">
+          ${(d.semellanzas || []).length ? `<div class="box"><h4>En que se parecen</h4><div class="diff">${d.semellanzas.map(s => `<div>${esc(s)}</div>`).join("")}</div></div>` : ""}
+          ${d.clave ? `<div class="box"><h4>A clave para non confundilos</h4><p>${esc(d.clave)}</p></div>` : ""}
+        </div>`;
+    } catch (err) { box.innerHTML = `<p class="error">${esc(errMsg(err))}</p>`; }
+  }
+  $("cmp-f").addEventListener("submit", e => { e.preventDefault(); compare($("cmp-a").value, $("cmp-b").value); });
+  $("cmp-f").addEventListener("click", e => { const b = e.target.closest("[data-a]"); if (b) compare(b.dataset.a, b.dataset.b); });
+
+  // ---------- Prazos ----------
+  const ymd = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+  const DIASm = ["domingo", "luns", "martes", "mércores", "xoves", "venres", "sábado"];
+  const longDate = (d) => `${DIASm[d.getDay()]}, ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`;
+  function easter(y) { // algoritmo de Butcher (calendario gregoriano)
+    const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+      h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+      month = Math.floor((h + l - 7 * m + 114) / 31), day = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, month - 1, day);
+  }
+  function holidaySet(y0, extra) {
+    const s = new Map();
+    for (let y = y0 - 1; y <= y0 + 4; y++) {
+      [["01-01", "Aninovo"], ["01-06", "Reis"], ["05-01", "Festa do Traballo"], ["08-15", "Asunción"], ["10-12", "Festa Nacional"], ["11-01", "Todos os Santos"], ["12-06", "Día da Constitución"], ["12-08", "Inmaculada"], ["12-25", "Nadal"]]
+        .forEach(([md, n]) => s.set(y + "-" + md, n));
+      s.set(ymd(addDays(easter(y), -2)), "Venres Santo");
+    }
+    extra.forEach(d => s.set(d, "Festivo engadido"));
+    return s;
+  }
+  function parseExtra(txt) {
+    return (txt || "").split(/[,;\s]+/).map(x => x.trim()).filter(Boolean).map(x => {
+      const m = /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/.exec(x);
+      return m ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}` : null;
+    }).filter(Boolean);
+  }
+  function whyOff(d, tipo, hol) {
+    if (tipo === "nat") return null;
+    const dow = d.getDay(), m = d.getMonth(), day = d.getDate();
+    if (hol.has(ymd(d))) return hol.get(ymd(d));
+    if (dow === 0) return "domingo";
+    if (dow === 6) return "sábado";
+    if (tipo === "xud" && m === 7) return "agosto";
+    if (tipo === "xud" && ((m === 11 && day >= 24) || (m === 0 && day <= 6))) return "24 dec – 6 xan";
+    return null;
+  }
+  function calcDeadline(start, n, unit, tipo, hol) {
+    let end, counted = [];
+    if (unit === "d") {
+      if (tipo === "nat") { end = addDays(start, n); for (let i = 1; i <= n; i++) counted.push(ymd(addDays(start, i))); }
+      else {
+        let d = start, c = 0, guard = 0;
+        while (c < n && guard++ < 5000) { d = addDays(d, 1); if (!whyOff(d, tipo, hol)) { c++; counted.push(ymd(d)); } }
+        end = d;
+      }
+    } else {
+      const y = start.getFullYear(), m = start.getMonth() + n;
+      const last = new Date(y, m + 1, 0).getDate();
+      end = new Date(y, m, Math.min(start.getDate(), last));
+      if (tipo !== "nat") while (whyOff(end, tipo, hol)) end = addDays(end, 1);
+      for (let d = addDays(start, 1); d <= end; d = addDays(d, 1)) if (!whyOff(d, tipo, hol)) counted.push(ymd(d));
+    }
+    return { end, counted: new Set(counted) };
+  }
+  function monthGrid(y, m, start, end, counted, tipo, hol) {
+    const first = new Date(y, m, 1), days = new Date(y, m + 1, 0).getDate(), pad = (first.getDay() + 6) % 7;
+    let cells = ["L", "M", "M", "X", "V", "S", "D"].map(h => `<div class="h">${h}</div>`).join("") + `<div class="d empty"></div>`.repeat(pad);
+    for (let i = 1; i <= days; i++) {
+      const d = new Date(y, m, i), k = ymd(d), off = whyOff(d, tipo, hol);
+      const cls = k === ymd(end) ? "end" : k === ymd(start) ? "start" : counted.has(k) ? "count" : (off && d > start && d < end) ? "off" : "";
+      cells += `<div class="d ${cls}" title="${esc(off || "")}">${i}</div>`;
+    }
+    return `<div class="month"><h4>${MESES[m]} ${y}</h4><div class="cal">${cells}</div></div>`;
+  }
+  $("pz-d").value = ymd(new Date());
+  $("pz-f").addEventListener("submit", e => {
+    e.preventDefault();
+    const box = $("pz-out"), [Y, M, D] = $("pz-d").value.split("-").map(Number);
+    const n = Math.max(1, Math.min(999, parseInt($("pz-n").value, 10) || 0)), unit = $("pz-u").value, tipo = $("pz-t").value;
+    if (!Y) { box.innerHTML = `<p class="error">Escolle a data de notificación.</p>`; return; }
+    const start = new Date(Y, M - 1, D), hol = holidaySet(Y, parseExtra($("pz-f2").value));
+    const { end, counted } = calcDeadline(start, n, unit, tipo, hol);
+    let next = addDays(end, 1); while (whyOff(next, "xud", hol)) next = addDays(next, 1);
+    const offCount = (() => { let c = 0; for (let d = addDays(start, 1); d < end; d = addDays(d, 1)) if (whyOff(d, tipo, hol)) c++; return c; })();
+    const tipoTxt = { xud: "xudicial", adm: "administrativo", nat: "en días naturais" }[tipo];
+    const notes = {
+      xud: `Inhábiles: sábados, domingos, festivos, agosto e do 24 de decembro ao 6 de xaneiro (arts. 182-185 LOPJ e 130-133 LEC). <b>Día de gracia</b> (art. 135 LEC): o escrito pódese presentar ata as 15:00 do día hábil seguinte, ${esc(longDate(next))}. Ollo: as actuacións urxentes e a instrución penal teñen hábiles todos os días.`,
+      adm: `Inhábiles: sábados, domingos e festivos; agosto e o Nadal son hábiles. O prazo conta desde o día seguinte á notificación e, se remata en día inhábil, pásase ao seguinte hábil (art. 30 Lei 39/2015).`,
+      nat: `Cóntanse todos os días seguidos, sen excluír inhábiles (art. 5 CC). Comproba se a norma aplicable prorroga o último día cando cae en inhábil.`
+    }[tipo];
+    let months = "", cur2 = new Date(start.getFullYear(), start.getMonth(), 1), guard = 0;
+    while (cur2 <= end && guard++ < 14) { months += monthGrid(cur2.getFullYear(), cur2.getMonth(), start, end, counted, tipo, hol); cur2 = new Date(cur2.getFullYear(), cur2.getMonth() + 1, 1); }
+    box.innerHTML = `<div class="result-big">
+        <span class="lbl2">Prazo ${tipoTxt} de ${n} ${unit === "d" ? (n === 1 ? "día" : "días") : (n === 1 ? "mes" : "meses")} · notificado o ${esc(longDate(start))}</span>
+        <div class="date">Vence o ${esc(longDate(end))}</div>
+        <p class="arts">${unit === "d" && tipo !== "nat" ? `Descontáronse ${offCount} días inhábiles polo medio.` : ""}</p>
+        <p style="font-family:var(--font-serif)">${notes}</p>
+      </div>
+      <div class="legend2" style="margin:16px 0 10px"><span><i style="background:var(--paper);border-color:var(--ink)"></i>Notificación</span><span><i style="background:var(--accent-soft)"></i>Día computado</span><span><i style="background:var(--paper);opacity:.6"></i>Inhábil (riscado)</span><span><i style="background:var(--accent)"></i>Vencemento</span></div>
+      <div class="months">${months}</div>
+      <p class="arts" style="margin-top:14px">Cálculo orientativo. Comproba sempre os festivos autonómicos e locais do ano e as regras especiais do teu procedemento.</p>`;
+  });
+
+  // ---------- Latinismos ----------
+  const LAT = [
+    ["In dubio pro reo", "Na dúbida, a favor do acusado.", "Se a proba non é concluínte, débese absolver.", "Penal"],
+    ["Nullum crimen, nulla poena sine lege", "Non hai delito nin pena sen lei previa.", "Principio de legalidade penal (art. 25 CE, art. 1 CP).", "Penal"],
+    ["Non bis in idem", "Non dúas veces polo mesmo.", "Ninguén pode ser sancionado dúas veces polos mesmos feitos e fundamento.", "Penal / Administrativo"],
+    ["Pacta sunt servanda", "Os pactos deben cumprirse.", "Forza obrigatoria dos contratos e tratados (art. 1091 CC).", "Civil / Internacional"],
+    ["Rebus sic stantibus", "Mentres as cousas sigan así.", "Permite revisar un contrato se cambian de forma imprevisible as circunstancias.", "Civil"],
+    ["Iura novit curia", "O tribunal coñece o Dereito.", "As partes achegan os feitos; o xuíz aplica a norma que corresponda.", "Procesual"],
+    ["Da mihi factum, dabo tibi ius", "Dáme os feitos e dareiche o Dereito.", "Complemento do anterior: as partes alegan feitos e o xuíz achega o Dereito.", "Procesual"],
+    ["Onus probandi", "Carga da proba.", "Quen afirma un feito debe probalo (art. 217 LEC).", "Procesual"],
+    ["Reformatio in peius", "Reforma a peor.", "Prohibición de empeorar a situación de quen recorre só.", "Procesual"],
+    ["Res iudicata", "Cousa xulgada.", "O xa resolto por sentenza firme non pode volver xulgarse.", "Procesual"],
+    ["Habeas corpus", "Que teñas o corpo.", "Procedemento para que un detido sexa levado de inmediato ante o xuíz (art. 17.4 CE).", "Constitucional"],
+    ["Erga omnes", "Fronte a todos.", "Efectos que alcanzan a todo o mundo, non só ás partes.", "Xeral"],
+    ["Inter partes", "Entre as partes.", "Efectos limitados a quen interveu no acto ou proceso.", "Xeral"],
+    ["Ex tunc", "Desde entón.", "Efectos retroactivos, desde o momento orixinario (p. ex. nulidade).", "Xeral"],
+    ["Ex nunc", "Desde agora.", "Efectos só cara ao futuro.", "Xeral"],
+    ["Ratio decidendi", "Razón para decidir.", "Fundamento xurídico esencial dunha sentenza, o que crea doutrina.", "Xeral"],
+    ["Obiter dicta", "Ditos de paso.", "Argumentos dunha sentenza que non son decisivos para o fallo.", "Xeral"],
+    ["Lex posterior derogat priori", "A lei posterior derroga a anterior.", "Criterio para resolver antinomias entre normas do mesmo rango.", "Teoría do Dereito"],
+    ["Lex specialis derogat generali", "A lei especial prevalece sobre a xeral.", "Criterio de especialidade (tamén no concurso de normas penais, art. 8 CP).", "Teoría do Dereito"],
+    ["Lex superior derogat inferiori", "A lei superior prevalece sobre a inferior.", "Principio de xerarquía normativa (art. 9.3 CE).", "Teoría do Dereito"],
+    ["Ignorantia iuris non excusat", "A ignorancia da lei non exime do seu cumprimento.", "Recollido no art. 6.1 CC.", "Civil"],
+    ["Prior in tempore, potior in iure", "Primeiro no tempo, mellor no dereito.", "Preferencia de quen inscribe ou adquire antes (Rexistro da Propiedade).", "Civil / Hipotecario"],
+    ["Nemo dat quod non habet", "Ninguén dá o que non ten.", "Ninguén pode transmitir máis dereitos dos que ten.", "Civil"],
+    ["Nemo iudex in causa sua", "Ninguén pode ser xuíz na súa propia causa.", "Fundamento da imparcialidade, abstención e recusación.", "Procesual"],
+    ["Nasciturus", "O que vai nacer.", "O concibido téñese por nacido para os efectos favorables (art. 29 CC).", "Civil"],
+    ["Mortis causa", "Por causa de morte.", "Actos que producen efectos á morte do seu autor (testamento).", "Civil / Sucesións"],
+    ["Inter vivos", "Entre vivos.", "Actos que producen efectos en vida das partes (doazón, compravenda).", "Civil"],
+    ["Ab intestato", "Sen testamento.", "Sucesión legal cando non hai testamento válido.", "Civil / Sucesións"],
+    ["Ius cogens", "Dereito imperativo.", "Normas que non se poden derrogar por vontade das partes nin dos Estados.", "Internacional"],
+    ["Culpa in vigilando", "Culpa na vixilancia.", "Responsabilidade por non vixiar a quen se ten a cargo (art. 1903 CC).", "Civil"],
+    ["Culpa in eligendo", "Culpa na elección.", "Responsabilidade por escoller mal a quen causa o dano.", "Civil"],
+    ["Animus necandi", "Ánimo de matar.", "Elemento subxectivo que distingue o homicidio das lesións.", "Penal"],
+    ["Animus laedendi", "Ánimo de lesionar.", "Intención de causar un dano corporal.", "Penal"],
+    ["Animus donandi", "Ánimo de doar.", "Intención de liberalidade, propia da doazón.", "Civil"],
+    ["Actio libera in causa", "Acción libre na súa causa.", "Responde quen se pon voluntariamente en situación de inimputabilidade para delinquir (art. 20.1 e 2 CP).", "Penal"],
+    ["Conditio sine qua non", "Condición sen a cal non.", "Requisito imprescindible; tamén unha teoría da causalidade.", "Xeral / Penal"],
+    ["Fumus boni iuris", "Aparencia de bo dereito.", "Requisito para adoptar medidas cautelares.", "Procesual"],
+    ["Periculum in mora", "Perigo pola demora.", "Risco de que o paso do tempo frustre a sentenza; requisito das cautelares.", "Procesual"],
+    ["Dies a quo", "Día desde o cal.", "Día inicial dun prazo (normalmente non se computa).", "Procesual"],
+    ["Dies ad quem", "Día ata o cal.", "Día final dun prazo.", "Procesual"],
+    ["Ultra petita", "Máis alá do pedido.", "Vicio da sentenza que concede máis do solicitado (incongruencia).", "Procesual"],
+    ["Extra petita", "Fóra do pedido.", "Vicio da sentenza que resolve algo distinto do solicitado.", "Procesual"],
+    ["Sub iudice", "Baixo o xuíz.", "Asunto pendente de resolución xudicial.", "Procesual"],
+    ["In flagranti", "No momento de cometelo.", "Delito descuberto mentres se comete ou acaba de cometerse.", "Penal"],
+    ["Numerus clausus", "Número pechado.", "Lista taxada que non admite outros supostos.", "Xeral"],
+    ["Numerus apertus", "Número aberto.", "Lista exemplificativa que admite outros supostos.", "Xeral"],
+    ["Ope legis", "Por ministerio da lei.", "Efecto que se produce automaticamente, sen necesidade de declaración.", "Xeral"],
+    ["Ultra vires", "Máis alá das forzas.", "Actuación que excede as competencias ou facultades atribuídas.", "Administrativo / Mercantil"],
+    ["Pro operario", "A favor do traballador.", "Na dúbida interpretativa, a favor do traballador.", "Laboral"],
+    ["Favor libertatis", "A favor da liberdade.", "Interpretación máis favorable á liberdade e aos dereitos fundamentais.", "Constitucional"]
+  ];
+  const norm = (s) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  function renderLat() {
+    const q = norm($("lat-q").value.trim());
+    const list = LAT.filter(r => !q || norm(r.join(" ")).includes(q));
+    $("lat-list").innerHTML = list.map(([la, gl, use, area]) => `<div class="lat"><span class="area">${esc(area)}</span><span class="la">${esc(la)}</span><span class="gl">${esc(gl)}</span><span class="use">${esc(use)}</span></div>`).join("");
+    $("lat-ask").innerHTML = q && !list.length ? `<div class="quiz-intro" style="margin-bottom:14px"><p>Non está na lista. Queres que a IA explique «${esc($("lat-q").value.trim())}»?</p><button class="btn-alt" type="button" id="lat-go">Preguntar</button></div>` : "";
+  }
+  $("lat-q").addEventListener("input", renderLat);
+  $("lat-ask").addEventListener("click", async e => {
+    if (e.target.id !== "lat-go") return;
+    const box = $("lat-ask"), q = $("lat-q").value.trim();
+    if (!needClaude(box)) return;
+    box.innerHTML = skeleton("Buscando a expresión…", 1);
+    try {
+      const d = await cached("lat:" + q.toLowerCase(), () => ask("lat", { q }));
+      box.innerHTML = d.erro ? `<p class="error">${esc(d.erro)}</p>` : `<div class="lat" style="margin-bottom:14px;border-color:var(--ink)"><span class="area">${esc(d.area || "")} · explicado pola IA</span><span class="la">${esc(d.expresion)}</span><span class="gl">${esc(d.significado)}</span><span class="use">${esc(d.uso)}</span></div>`;
+    } catch (err) { box.innerHTML = `<p class="error">${esc(errMsg(err))}</p>`; }
+  });
+
+  // Copiar esquema do caso
+  document.addEventListener("click", async e => {
+    const b = e.target.closest("[data-copy='casos']"); if (!b) return;
+    try { await navigator.clipboard.writeText(casosText); toast("Esquema copiado"); } catch { toast("Non se puido copiar"); }
+  });
+
+  route();
+  renderRecent();
+  renderFavs();
+
+})();
+</script>
+</body>
+</html>
